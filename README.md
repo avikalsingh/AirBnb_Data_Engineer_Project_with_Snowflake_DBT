@@ -1,44 +1,58 @@
 # 🏠 Airbnb Data Engineering Pipeline
-### Snowflake · dbt · Python · Medallion Architecture
+### AWS S3 · Snowflake · dbt · Python · Medallion Architecture
 
 ![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python&logoColor=white)
 ![dbt](https://img.shields.io/badge/dbt-Core-orange?logo=dbt&logoColor=white)
 ![Snowflake](https://img.shields.io/badge/Snowflake-Data%20Warehouse-29B5E8?logo=snowflake&logoColor=white)
+![AWS](https://img.shields.io/badge/AWS-S3%20%2B%20IAM-FF9900?logo=amazonaws&logoColor=white)
 ![Status](https://img.shields.io/badge/Status-Complete-brightgreen)
 
 ---
 
 ## 📌 Project Overview
 
-An end-to-end **Data Engineering pipeline** built on real-world Airbnb data, implementing a **Medallion Architecture** (Bronze → Silver → Gold) using **dbt Core** and **Snowflake** as the cloud data warehouse. This project demonstrates production-grade data modeling skills including incremental loading, slowly changing dimensions, data quality testing, and reusable macros.
+An end-to-end **Data Engineering pipeline** built on real-world Airbnb data, implementing a **Medallion Architecture** (Bronze → Silver → Gold). Raw CSV data is stored in **AWS S3** and loaded into **Snowflake** via a secured external stage authenticated with **AWS IAM**. Transformations are handled by **dbt Core**, demonstrating production-grade skills including incremental loading, slowly changing dimensions, data quality testing, and reusable macros.
 
 ---
 
 ## 🏗️ Architecture
 
 ```
-Raw Airbnb Data (Listings, Bookings, Hosts)
+ Airbnb Raw Data (Listings, Bookings, Hosts)
         │
         ▼
-┌──────────────────┐
-│   BRONZE LAYER   │  ← Raw ingestion, no transformation
-│  (Source Models) │
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│   SILVER LAYER   │  ← Cleaned, deduplicated, type-cast
-│ (Staging Models) │
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│    GOLD LAYER    │  ← Business-ready: Facts, Dimensions, OBT
-│  (Mart Models)   │
-└──────────────────┘
-         │
-         ▼
-   Snowflake DWH → BI / Analytics
+┌──────────────────────┐
+│      AWS S3          │  ← Cloud object storage (CSV files)
+│  (Source Data Lake)  │
+└──────────┬───────────┘
+           │  IAM Role Authentication
+           │  (Storage Integration + External Stage)
+           ▼
+┌──────────────────────┐
+│   Snowflake STAGE    │  ← Secure external stage pointing to S3
+│  (COPY INTO command) │
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│    BRONZE LAYER      │  ← Raw ingestion, no transformation
+│   (Source Models)    │
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│    SILVER LAYER      │  ← Cleaned, deduplicated, type-cast
+│  (Staging Models)    │
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│     GOLD LAYER       │  ← Business-ready: Facts, Dimensions, OBT
+│    (Mart Models)     │
+└──────────────────────┘
+           │
+           ▼
+    Snowflake DWH → BI / Analytics
 ```
 
 ---
@@ -47,7 +61,9 @@ Raw Airbnb Data (Listings, Bookings, Hosts)
 
 | Tool | Purpose |
 |------|---------|
-| **Snowflake** | Cloud Data Warehouse |
+| **AWS S3** | Cloud object storage for raw source data |
+| **AWS IAM** | Secure authentication between S3 and Snowflake |
+| **Snowflake** | Cloud Data Warehouse + External Stage |
 | **dbt Core** | Data transformation, testing & documentation |
 | **Python** | Data ingestion & orchestration scripts |
 | **SQL** | Data modeling & transformation logic |
@@ -93,6 +109,8 @@ aws_dbt_snowflake_project/
 
 ## ✨ Key Features
 
+- **AWS S3 → Snowflake Integration** — Raw data securely loaded from S3 using IAM-authenticated external stages
+- **IAM Role-Based Security** — Snowflake storage integration with AWS IAM eliminates hardcoded credentials
 - **Medallion Architecture** — Clean separation of Bronze, Silver, and Gold layers for maintainability and scalability
 - **Slowly Changing Dimensions (SCD Type 2)** — Snapshots capturing historical changes in listings, bookings, and hosts
 - **Data Quality Testing** — dbt tests for uniqueness, not-null, referential integrity, and custom business rules
@@ -100,6 +118,70 @@ aws_dbt_snowflake_project/
 - **Ephemeral Models** — Intermediate transformations that don't materialize, keeping the warehouse clean
 - **One Big Table (OBT)** — Denormalized gold layer model optimized for BI tool consumption
 - **Modular SQL** — Every transformation is version-controlled, testable, and documented
+
+---
+
+## ☁️ AWS S3 to Snowflake Data Ingestion
+
+Data is ingested from AWS S3 into Snowflake using a **secure storage integration** with IAM, avoiding any hardcoded credentials.
+
+### Step 1: Create Snowflake Storage Integration
+```sql
+CREATE STORAGE INTEGRATION s3_airbnb_integration
+  TYPE = EXTERNAL_STAGE
+  STORAGE_PROVIDER = 'S3'
+  ENABLED = TRUE
+  STORAGE_AWS_ROLE_ARN = 'arn:aws:iam::<account_id>:role/snowflake-s3-role'
+  STORAGE_ALLOWED_LOCATIONS = ('s3://<your-bucket>/airbnb/');
+
+-- Retrieve the Snowflake IAM values to configure AWS trust policy
+DESC INTEGRATION s3_airbnb_integration;
+```
+
+### Step 2: Configure AWS IAM Trust Policy
+Use the `STORAGE_AWS_IAM_USER_ARN` and `STORAGE_AWS_EXTERNAL_ID` from the above command to update the IAM role's trust relationship in AWS:
+```json
+{
+  "Effect": "Allow",
+  "Principal": {
+    "AWS": "<STORAGE_AWS_IAM_USER_ARN>"
+  },
+  "Action": "sts:AssumeRole",
+  "Condition": {
+    "StringEquals": {
+      "sts:ExternalId": "<STORAGE_AWS_EXTERNAL_ID>"
+    }
+  }
+}
+```
+
+### Step 3: Create External Stage in Snowflake
+```sql
+CREATE OR REPLACE STAGE airbnb_s3_stage
+  STORAGE_INTEGRATION = s3_airbnb_integration
+  URL = 's3://<your-bucket>/airbnb/'
+  FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"' SKIP_HEADER = 1);
+```
+
+### Step 4: Load Data into Snowflake Raw Tables
+```sql
+-- Load listings
+COPY INTO AIRBNB.RAW.RAW_LISTINGS
+FROM @airbnb_s3_stage/listings.csv
+FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"' SKIP_HEADER = 1);
+
+-- Load hosts
+COPY INTO AIRBNB.RAW.RAW_HOSTS
+FROM @airbnb_s3_stage/hosts.csv
+FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"' SKIP_HEADER = 1);
+
+-- Load bookings/reviews
+COPY INTO AIRBNB.RAW.RAW_BOOKINGS
+FROM @airbnb_s3_stage/bookings.csv
+FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"' SKIP_HEADER = 1);
+```
+
+> 🔐 **Security Note:** No AWS credentials are hardcoded anywhere. Authentication is handled entirely via IAM role trust relationships and Snowflake's storage integration.
 
 ---
 
@@ -199,12 +281,14 @@ Tests are defined across all layers:
 
 ## 📈 What I Learned
 
+- Configuring **AWS S3 → Snowflake** integration using IAM roles and storage integrations (zero hardcoded credentials)
+- Setting up **Snowflake External Stages** and using `COPY INTO` for bulk data loading
 - Designing scalable **Medallion Architecture** in a cloud data warehouse
 - Writing modular, reusable **dbt models** with Jinja templating
 - Implementing **SCD Type 2** with dbt snapshots for historical tracking
 - Building robust **data quality frameworks** with dbt tests
 - Managing **Snowflake** roles, warehouses, and schemas for a multi-layer pipeline
-- Following **data engineering best practices**: version control, .gitignore for credentials, environment separation
+- Following **data engineering best practices**: version control, credential security, environment separation
 
 ---
 
