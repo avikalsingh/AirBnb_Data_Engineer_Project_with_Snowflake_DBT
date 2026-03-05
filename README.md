@@ -1,17 +1,18 @@
 # 🏠 Airbnb Data Engineering Pipeline
-### AWS S3 · Snowflake · dbt · Python · Medallion Architecture
+### AWS S3 · Snowflake · dbt · Streamlit · Medallion Architecture
 
 ![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python&logoColor=white)
 ![dbt](https://img.shields.io/badge/dbt-Core-orange?logo=dbt&logoColor=white)
 ![Snowflake](https://img.shields.io/badge/Snowflake-Data%20Warehouse-29B5E8?logo=snowflake&logoColor=white)
 ![AWS](https://img.shields.io/badge/AWS-S3%20%2B%20IAM-FF9900?logo=amazonaws&logoColor=white)
+![Streamlit](https://img.shields.io/badge/Live%20Dashboard-Streamlit-FF4B4B?logo=streamlit&logoColor=white)
 ![Status](https://img.shields.io/badge/Status-Complete-brightgreen)
 
 ---
 
 ## 📌 Project Overview
 
-An end-to-end **Data Engineering pipeline** built on real-world Airbnb data, implementing a **Medallion Architecture** (Bronze → Silver → Gold). Raw CSV data is stored in **AWS S3** and loaded into **Snowflake** via a secured external stage authenticated with **AWS IAM**. Transformations are handled by **dbt Core**, demonstrating production-grade skills including incremental loading, slowly changing dimensions, data quality testing, and reusable macros.
+An end-to-end **Data Engineering pipeline** built on real-world Airbnb data, implementing a **Medallion Architecture** (Bronze → Silver → Gold). Raw CSV data is stored in **AWS S3** and loaded into **Snowflake** via a secured external stage authenticated with **AWS IAM**. Transformations are handled by **dbt Core**, demonstrating production-grade skills including incremental loading, slowly changing dimensions, data quality testing, and reusable macros. The Gold layer is surfaced through an interactive **Streamlit analytics dashboard** deployed on Streamlit Cloud.
 
 ---
 
@@ -52,8 +53,27 @@ An end-to-end **Data Engineering pipeline** built on real-world Airbnb data, imp
 └──────────────────────┘
            │
            ▼
-    Snowflake DWH → BI / Analytics
+┌──────────────────────┐
+│  Streamlit Dashboard │  ← Interactive analytics on Streamlit Cloud
+│  (Live BI Layer)     │
+└──────────────────────┘
 ```
+
+---
+
+## 📊 Live Dashboard
+
+An interactive analytics dashboard built with **Streamlit + Plotly**, connected live to Snowflake.
+
+**Features:**
+- 6 KPI cards — total bookings, unique hosts, avg/median price, superhost rate, avg guests
+- Booking trends — dual-axis chart combining monthly volume and avg price over time
+- Price intelligence — avg price by bedrooms, listing segment breakdown, price spread violin plots
+- Host insights — superhost pricing premium, response rate quality, host tenure vs price scatter
+- Sidebar filters — filter the entire dashboard by price segment, host type, bedrooms, and booking period
+- Data explorer — segment summary table and filterable raw records
+
+> **Tech:** Streamlit · Plotly · Snowflake Connector · pandas — deployed free on Streamlit Cloud
 
 ---
 
@@ -62,47 +82,46 @@ An end-to-end **Data Engineering pipeline** built on real-world Airbnb data, imp
 | Tool | Purpose |
 |------|---------|
 | **AWS S3** | Cloud object storage for raw source data |
-| **AWS IAM** | Secure authentication between S3 and Snowflake |
+| **AWS IAM** | Secure authentication between S3 and Snowflake (no hardcoded credentials) |
 | **Snowflake** | Cloud Data Warehouse + External Stage |
 | **dbt Core** | Data transformation, testing & documentation |
-| **Python** | Data ingestion & orchestration scripts |
+| **Streamlit** | Interactive analytics dashboard (live deployment) |
+| **Plotly** | Interactive charts and visualizations |
+| **Python** | Data ingestion, orchestration & dashboard scripts |
 | **SQL** | Data modeling & transformation logic |
-| **Git** | Version control |
+| **Git** | Version control with clean history (credentials never committed) |
 
 ---
 
 ## 📂 Project Structure
 
 ```
-aws_dbt_snowflake_project/
-├── models/
-│   ├── bronze/               # Raw source models
-│   │   ├── bronze_bookings.sql
-│   │   ├── bronze_hosts.sql
-│   │   └── bronze_listings.sql
-│   ├── silver/               # Cleaned & standardized models
-│   │   ├── silver_bookings.sql
-│   │   ├── silver_hosts.sql
-│   │   └── silver_listings.sql
-│   └── gold/                 # Business-ready analytical models
-│       ├── fact.sql           # Fact table
-│       ├── obt.sql            # One Big Table for reporting
-│       └── ephemeral/         # Intermediate ephemeral models
-├── snapshots/                # SCD Type 2 slowly changing dimensions
-│   ├── dim_bookings.yml
-│   ├── dim_hosts.yml
-│   ├── dim_listings.yml
-│   └── listings.sql
-├── macros/                   # Reusable Jinja macros
-│   ├── generate_schema_name.sql
-│   ├── multiply.sql
-│   ├── tag.sql
-│   └── trimmer.sql
-├── analyses/                 # Ad-hoc SQL analysis scripts
-├── tests/                    # Custom data quality tests
-├── seeds/                    # Static reference data
-├── dbt_project.yml
-└── ExampleProfiles.yml       # Connection template (no credentials)
+AWS_DBT_Snowflake/
+├── dashboard.py                        ← Streamlit analytics dashboard
+├── requirements.txt                    ← Dashboard dependencies
+├── .streamlit/
+│   └── secrets.toml.example            ← Safe template (actual secrets gitignored)
+├── aws_dbt_snowflake_project/
+│   ├── models/
+│   │   ├── bronze/                     # Raw source models
+│   │   │   ├── bronze_bookings.sql
+│   │   │   ├── bronze_hosts.sql
+│   │   │   └── bronze_listings.sql
+│   │   ├── silver/                     # Cleaned & standardized models
+│   │   │   ├── silver_bookings.sql
+│   │   │   ├── silver_hosts.sql
+│   │   │   └── silver_listings.sql
+│   │   └── gold/                       # Business-ready analytical models
+│   │       ├── fact.sql
+│   │       ├── obt.sql                 # One Big Table for reporting
+│   │       └── ephemeral/
+│   ├── snapshots/                      # SCD Type 2 slowly changing dimensions
+│   ├── macros/                         # Reusable Jinja macros
+│   ├── tests/                          # Custom data quality tests
+│   ├── seeds/                          # Static reference data
+│   ├── dbt_project.yml
+│   └── ExampleProfiles.yml             # Connection template (no credentials)
+└── README.md
 ```
 
 ---
@@ -117,7 +136,8 @@ aws_dbt_snowflake_project/
 - **Reusable Macros** — Jinja-powered macros for schema generation, string cleaning, and calculations
 - **Ephemeral Models** — Intermediate transformations that don't materialize, keeping the warehouse clean
 - **One Big Table (OBT)** — Denormalized gold layer model optimized for BI tool consumption
-- **Modular SQL** — Every transformation is version-controlled, testable, and documented
+- **Live Analytics Dashboard** — Streamlit app with interactive filters connected directly to Snowflake
+- **Credential Security** — secrets.toml and profiles.yml gitignored; secrets managed via Streamlit Cloud secrets manager
 
 ---
 
@@ -165,17 +185,14 @@ CREATE OR REPLACE STAGE airbnb_s3_stage
 
 ### Step 4: Load Data into Snowflake Raw Tables
 ```sql
--- Load listings
 COPY INTO AIRBNB.RAW.RAW_LISTINGS
 FROM @airbnb_s3_stage/listings.csv
 FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"' SKIP_HEADER = 1);
 
--- Load hosts
 COPY INTO AIRBNB.RAW.RAW_HOSTS
 FROM @airbnb_s3_stage/hosts.csv
 FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"' SKIP_HEADER = 1);
 
--- Load bookings/reviews
 COPY INTO AIRBNB.RAW.RAW_BOOKINGS
 FROM @airbnb_s3_stage/bookings.csv
 FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"' SKIP_HEADER = 1);
@@ -199,7 +216,6 @@ cd AirBnb_Data_Engineer_Project_with_Snowflake_DBT
 ```
 
 ### 2. Set up Snowflake
-Run the following in Snowflake to create the required roles and database:
 ```sql
 USE ROLE ACCOUNTADMIN;
 CREATE ROLE IF NOT EXISTS transform;
@@ -227,25 +243,28 @@ aws_dbt_snowflake_project:
   target: dev
 ```
 
-### 4. Run the pipeline
+### 4. Run the dbt pipeline
 ```bash
 cd aws_dbt_snowflake_project
+dbt deps        # Install dependencies
+dbt debug       # Test connection
+dbt run         # Run all models
+dbt test        # Run data quality tests
+dbt docs generate && dbt docs serve
+```
 
-# Install dependencies
-dbt deps
+### 5. Run the dashboard locally
+```bash
+# From project root
+pip install -r requirements.txt
 
-# Test connection
-dbt debug
+# Create .streamlit/secrets.toml with your Snowflake credentials:
+# [snowflake]
+# account  = "your-account"
+# user     = "your-user"
+# password = "your-password"
 
-# Run all models
-dbt run
-
-# Run tests
-dbt test
-
-# Generate documentation
-dbt docs generate
-dbt docs serve
+streamlit run dashboard.py
 ```
 
 ---
@@ -256,10 +275,9 @@ dbt docs serve
 bronze_listings ──┐
 bronze_hosts    ──┼──► silver_* ──► gold/fact.sql
 bronze_bookings ──┘              └──► gold/obt.sql (One Big Table)
-                                  └──► snapshots/ (SCD Type 2)
+                                  └──► snapshots/  (SCD Type 2)
+                                  └──► dashboard.py (Streamlit BI Layer)
 ```
-
-### Layer Descriptions
 
 **Bronze** — Direct representation of raw source data with minimal transformation. Preserves source fidelity.
 
@@ -287,15 +305,24 @@ Tests are defined across all layers:
 - Writing modular, reusable **dbt models** with Jinja templating
 - Implementing **SCD Type 2** with dbt snapshots for historical tracking
 - Building robust **data quality frameworks** with dbt tests
-- Managing **Snowflake** roles, warehouses, and schemas for a multi-layer pipeline
-- Following **data engineering best practices**: version control, credential security, environment separation
+- Building and deploying a **production Streamlit dashboard** connected live to Snowflake
+- Managing **secrets securely** across local development and cloud deployment
+- Debugging **dependency conflicts** between dbt and Streamlit in a shared Python environment
+
+---
+
+## 🔐 Security Notes
+
+- `profiles.yml` and `secrets.toml` are **gitignored** — credentials are never committed
+- AWS authentication uses **IAM role trust relationships** — no AWS access keys in code
+- Streamlit Cloud secrets are configured via the **Streamlit Cloud UI**, not stored in the repository
+- Git history has been cleaned to ensure no credentials appear in any prior commits
 
 ---
 
 ## 📬 Contact
 
-**Avikal Singh**  
-[GitHub](https://github.com/avikalsingh) · [LinkedIn](https://linkedin.com/in/avikalsingh)
+**Avikal Singh** · [LinkedIn](https://www.linkedin.com/in/avikal-singh-079ab8184/)
 
 ---
 
