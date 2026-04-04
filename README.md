@@ -5,7 +5,7 @@
 ![dbt](https://img.shields.io/badge/dbt-Core-orange?logo=dbt&logoColor=white)
 ![Snowflake](https://img.shields.io/badge/Snowflake-Data%20Warehouse-29B5E8?logo=snowflake&logoColor=white)
 ![AWS](https://img.shields.io/badge/AWS-S3%20%2B%20IAM-FF9900?logo=amazonaws&logoColor=white)
-![Streamlit](https://img.shields.io/badge/Live%20Dashboard-Streamlit-FF4B4B?logo=streamlit&logoColor=white)
+[![Live Dashboard](https://img.shields.io/badge/Live%20Dashboard-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://airbnbwithdbt.streamlit.app/)
 ![Status](https://img.shields.io/badge/Status-Complete-brightgreen)
 
 ---
@@ -13,6 +13,8 @@
 ## 📌 Project Overview
 
 An end-to-end **Data Engineering pipeline** built on real-world Airbnb data, implementing a **Medallion Architecture** (Bronze → Silver → Gold). Raw CSV data is stored in **AWS S3** and loaded into **Snowflake** via a secured external stage authenticated with **AWS IAM**. Transformations are handled by **dbt Core**, demonstrating production-grade skills including incremental loading, slowly changing dimensions, data quality testing, and reusable macros. The Gold layer is surfaced through an interactive **Streamlit analytics dashboard** deployed on Streamlit Cloud.
+
+🔗 **[View Live Dashboard →](https://airbnbwithdbt.streamlit.app/)**
 
 ---
 
@@ -55,13 +57,15 @@ An end-to-end **Data Engineering pipeline** built on real-world Airbnb data, imp
            ▼
 ┌──────────────────────┐
 │  Streamlit Dashboard │  ← Interactive analytics on Streamlit Cloud
-│  (Live BI Layer)     │
+│  (Live BI Layer)     │  → https://airbnbwithdbt.streamlit.app/
 └──────────────────────┘
 ```
 
 ---
 
 ## 📊 Live Dashboard
+
+🔗 **[https://airbnbwithdbt.streamlit.app/](https://airbnbwithdbt.streamlit.app/)**
 
 An interactive analytics dashboard built with **Streamlit + Plotly**, connected live to Snowflake.
 
