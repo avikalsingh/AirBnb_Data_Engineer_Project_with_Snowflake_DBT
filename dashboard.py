@@ -1,5 +1,6 @@
 import streamlit as st
-import snowflake.connector
+# import snowflake.connector
+from databricks import sql
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -71,43 +72,78 @@ st.markdown("""
 # ─────────────────────────────────────────
 # SNOWFLAKE CONNECTION
 # ─────────────────────────────────────────
+# @st.cache_resource
+# def get_connection():
+#     return snowflake.connector.connect(
+#         account   = st.secrets["snowflake"]["account"],
+#         user      = st.secrets["snowflake"]["user"],
+#         password  = st.secrets["snowflake"]["password"],
+#         warehouse = "COMPUTE_WH",
+#         database  = "AIRBNB",
+#         schema    = "DEV"
+#     )
+
 @st.cache_resource
 def get_connection():
-    return snowflake.connector.connect(
-        account   = st.secrets["snowflake"]["account"],
-        user      = st.secrets["snowflake"]["user"],
-        password  = st.secrets["snowflake"]["password"],
-        warehouse = "COMPUTE_WH",
-        database  = "AIRBNB",
-        schema    = "DEV"
+    return sql.connect(
+        server_hostname = st.secrets["databricks"]["host"],
+        http_path       = st.secrets["databricks"]["http_path"],
+        access_token    = st.secrets["databricks"]["token"]
     )
+
+# @st.cache_data(ttl=3600)
+# def load_data():
+#     conn = get_connection()
+#     query = """
+#         SELECT
+#             ACCOMMODATES,
+#             BEDROOMS,
+#             BATHROOMS,
+#             PRICE_PER_NIGHT,
+#             PRICE_PER_NIGHT_TAG,
+#             HOST_NAME,
+#             IS_SUPERHOST,
+#             RESPONSE_RATE,
+#             RESPONSE_RATE_QUALITY,
+#             TO_TIMESTAMP(HOST_SINCE)   AS HOST_SINCE,
+#             TO_TIMESTAMP(BOOKING_DATE) AS BOOKING_DATE
+#         FROM AIRBNB.GOLD.OBT
+#     """
+#     df = pd.read_sql(query, conn)
+#     df.columns = df.columns.str.upper()
+#     df["IS_SUPERHOST"]    = df["IS_SUPERHOST"].astype(bool)
+#     df["BOOKING_DATE"]    = pd.to_datetime(df["BOOKING_DATE"], errors="coerce")
+#     df["HOST_SINCE"]      = pd.to_datetime(df["HOST_SINCE"],   errors="coerce")
+#     df["BOOKING_MONTH"]   = df["BOOKING_DATE"].dt.strftime("%Y-%m")
+#     df["SUPERHOST_LABEL"] = df["IS_SUPERHOST"].map({True: "Superhost", False: "Non-Superhost"})
+#     return df
+
 
 @st.cache_data(ttl=3600)
 def load_data():
     conn = get_connection()
-    query = """
-        SELECT
-            ACCOMMODATES,
-            BEDROOMS,
-            BATHROOMS,
-            PRICE_PER_NIGHT,
-            PRICE_PER_NIGHT_TAG,
-            HOST_NAME,
-            IS_SUPERHOST,
-            RESPONSE_RATE,
-            RESPONSE_RATE_QUALITY,
-            TO_TIMESTAMP(HOST_SINCE)   AS HOST_SINCE,
-            TO_TIMESTAMP(BOOKING_DATE) AS BOOKING_DATE
-        FROM AIRBNB.GOLD.OBT
-    """
-    df = pd.read_sql(query, conn)
-    df.columns = df.columns.str.upper()
+    with conn.cursor() as cursor:
+        cursor.execute("""
+            SELECT
+                ACCOMMODATES, BEDROOMS, BATHROOMS,
+                PRICE_PER_NIGHT, PRICE_PER_NIGHT_TAG,
+                HOST_NAME, IS_SUPERHOST,
+                RESPONSE_RATE, RESPONSE_RATE_QUALITY,
+                CAST(HOST_SINCE   AS TIMESTAMP) AS HOST_SINCE,
+                CAST(BOOKING_DATE AS TIMESTAMP) AS BOOKING_DATE
+            FROM airbnb.gold.obt
+        """)
+        df = pd.DataFrame(
+            cursor.fetchall(),
+            columns=[d[0].upper() for d in cursor.description]
+        )
     df["IS_SUPERHOST"]    = df["IS_SUPERHOST"].astype(bool)
     df["BOOKING_DATE"]    = pd.to_datetime(df["BOOKING_DATE"], errors="coerce")
     df["HOST_SINCE"]      = pd.to_datetime(df["HOST_SINCE"],   errors="coerce")
     df["BOOKING_MONTH"]   = df["BOOKING_DATE"].dt.strftime("%Y-%m")
     df["SUPERHOST_LABEL"] = df["IS_SUPERHOST"].map({True: "Superhost", False: "Non-Superhost"})
     return df
+
 
 # ─────────────────────────────────────────
 # THEME CONSTANTS
